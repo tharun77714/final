@@ -152,7 +152,7 @@ function VendorLoginForm() {
       const data = await response.json();
 
       if (response.ok) {
-        router.push('/vendor');
+        router.push('/home/vendor');
       } else {
         setError(data.error || (isRegister ? 'Registration failed' : 'Login failed'));
       }

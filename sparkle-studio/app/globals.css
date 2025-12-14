@@ -1,8 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --primary-purple: #8B5CF6;
+  --primary-purple-dark: #7C3AED;
+  --soft-pink: #F472B6;
+  --light-gray: #E5E7EB;
+  --dark-bg: #1A1A2E;
+  --border-subtle: rgba(255, 255, 255, 0.1);
 }
 
 @theme inline {
@@ -12,15 +18,98 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html, body {
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Snap Scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+.snap-scroll-container {
+  scroll-snap-type: y mandatory;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  height: 100vh;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.snap-section {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  height: 100vh;
+  min-height: 100vh;
+  position: relative;
+  flex-shrink: 0;
+  width: 100%;
+}
+
+/* Glassmorphism */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Hide Spline Attribution - Target common selectors */
+spline-viewer::part(attribution) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Hide any links or buttons that might be attribution */
+spline-viewer a[href*="spline"],
+spline-viewer a[href*="splinetool"],
+spline-viewer button[class*="attribution"],
+spline-viewer [class*="attribution"],
+spline-viewer [class*="watermark"],
+spline-viewer a,
+spline-viewer button,
+spline-viewer div[class*="spline"],
+spline-viewer span[class*="spline"] {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Ensure Spline viewer is interactive and fills container */
+spline-viewer {
+  pointer-events: auto !important;
+  touch-action: auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+
+/* Ensure canvas inside Spline viewer is interactive */
+spline-viewer::part(canvas),
+spline-viewer canvas {
+  pointer-events: auto !important;
+  touch-action: auto !important;
+  width: 100% !important;
+  height: 100% !important;
 }

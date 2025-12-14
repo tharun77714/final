@@ -151,7 +151,7 @@ function CustomerLoginForm() {
       const data = await response.json();
 
       if (response.ok) {
-        router.push('/customer');
+        router.push('/home/customer');
       } else {
         setError(data.error || (isRegister ? 'Registration failed' : 'Login failed'));
       }
