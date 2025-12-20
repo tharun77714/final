@@ -86,9 +86,6 @@ function CustomerLoginForm() {
       document.head.appendChild(script);
     }
 
-    // Render button only when on registration page
-    if (!isRegister) return;
-
     const renderButton = () => {
       if (window.google && googleButtonRef.current) {
         try {
@@ -163,75 +160,96 @@ function CustomerLoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen">
-      {/* Left Column - Visual/Branding */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800">
-        <div 
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-          }}
-        ></div>
-        
-        <div className="relative z-10 flex flex-col justify-between p-12 text-white">
-          <div>
-            <Link href="/" className="text-2xl font-bold mb-8 inline-block">
-              Sparkle Studio →
-            </Link>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center px-6 py-12">
+      {/* Card Container */}
+      <div className="w-full max-w-7xl bg-gray-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col lg:flex-row">
+        {/* Left Column - Visual/Branding (40% width) */}
+        <div className="hidden lg:flex lg:w-[40%] relative bg-gradient-to-br from-purple-500 via-purple-600 via-pink-500 to-purple-800 overflow-hidden">
+          {/* Decorative abstract shapes */}
+          <div className="absolute top-10 left-10 w-24 h-24 bg-pink-400 rounded-full opacity-30"></div>
+          <div className="absolute top-32 right-20 w-32 h-12 bg-yellow-300 rounded-full opacity-40 transform rotate-12"></div>
+          <div className="absolute bottom-32 left-32 w-28 h-12 bg-pink-400 rounded-full opacity-40 transform -rotate-12"></div>
+          <div className="absolute bottom-20 right-10 w-40 h-40 bg-purple-300 rounded-full opacity-20 transform rotate-45"></div>
+          <div className="absolute top-1/2 left-1/4 w-20 h-20 bg-blue-300 rounded-full opacity-30"></div>
           
-          <div className="mb-12">
-            <h2 className="text-3xl font-semibold mb-4">Welcome {isRegister ? '' : 'Back'}!</h2>
-            <p className="text-purple-200 text-lg">Capturing Moments, Creating Memories</p>
+          <div className="relative z-10 flex flex-col justify-between p-10 py-12 text-white w-full">
+            <div>
+              <Link href="/" className="text-xl font-bold mb-4 inline-flex items-center gap-2 hover:text-purple-200 transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Sparkle Studio
+              </Link>
+            </div>
+            
+            {/* Image and Content Container */}
+            <div className="flex-1 flex flex-col items-center justify-center py-4">
+              <div className="relative mb-4">
+                <img 
+                  src="/media/login_page-removebg-preview.png" 
+                  alt="Welcome" 
+                  className="relative z-10 w-full max-w-xs h-auto object-contain drop-shadow-2xl"
+                />
+              </div>
+              
+              <div className="text-center">
+                <h2 className="text-2xl font-bold mb-2 text-white">
+                  Welcome {isRegister ? '' : 'Back'}!
+                </h2>
+                <p className="text-purple-100 text-sm font-medium">Capturing Moments, Creating Memories</p>
+              </div>
+            </div>
+            
+            <div className="text-left text-purple-200/80 text-xs">
+              Copyright © 2024, Sparkle Studio. All rights reserved.
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Right Column - Form */}
-      <div className="flex-1 flex items-center justify-center bg-[#1a1625] px-6 py-12">
-        <div className="w-full max-w-md">
-          <Link href="/" className="text-purple-400 hover:text-purple-300 mb-8 inline-block text-sm">
-            ← Back to website
-          </Link>
-
-          <h1 className="text-4xl font-bold text-white mb-2">
-            {isRegister ? 'Create an account.' : 'Log in.'}
-          </h1>
-          <p className="text-gray-400 mb-8">
-            {isRegister ? (
-              <>
-                Already have an account?{' '}
-                <Link href="/login/customer" className="text-purple-400 hover:text-purple-300 underline">
-                  Log in
-                </Link>
-              </>
-            ) : (
-              <>
-                Don&apos;t have an account?{' '}
-                <Link href="/login/customer?register=true" className="text-purple-400 hover:text-purple-300 underline">
-                  Sign up
-                </Link>
-              </>
-            )}
-          </p>
+        {/* Right Column - Form (60% width) */}
+        <div className="flex-1 lg:w-[60%] flex items-center justify-center bg-gray-800 px-6 py-12">
+        <div className="w-full max-w-sm">
+          {/* Tabs */}
+          <div className="flex gap-8 mb-6 border-b border-gray-700">
+            <button
+              onClick={() => setIsRegister(true)}
+              className={`pb-4 px-2 font-medium text-lg transition-colors ${
+                isRegister
+                  ? 'text-purple-400 border-b-2 border-purple-400'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              Sign Up
+            </button>
+            <button
+              onClick={() => setIsRegister(false)}
+              className={`pb-4 px-2 font-medium text-lg transition-colors ${
+                !isRegister
+                  ? 'text-purple-400 border-b-2 border-purple-400'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              Sign In
+            </button>
+          </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+            <div className="mb-4 p-3 bg-red-900/30 border border-red-700 rounded-lg text-red-400 text-sm">
               {error}
             </div>
           )}
 
           {googleIdToken && (
-            <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">
+            <div className="mb-4 p-3 bg-green-900/30 border border-green-700 rounded-lg text-green-400 text-sm">
               ✓ Google email verified: {email}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {isRegister && (
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
-                  Name
+                  Full Name
                 </label>
                 <input
                   id="name"
@@ -240,8 +258,8 @@ function CustomerLoginForm() {
                   onChange={(e) => setName(e.target.value)}
                   required
                   disabled={!!googleIdToken}
-                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                  placeholder="Enter your name"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="Enter your full name"
                 />
               </div>
             )}
@@ -257,11 +275,10 @@ function CustomerLoginForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={!!googleIdToken}
-                className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Enter your email"
               />
             </div>
-
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
@@ -274,7 +291,7 @@ function CustomerLoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent pr-12"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 pr-12"
                   placeholder="Enter your password"
                 />
                 <button
@@ -296,50 +313,40 @@ function CustomerLoginForm() {
               </div>
             </div>
 
-            {isRegister && (
-              <div className="flex items-start">
-                <input
-                  id="terms"
-                  type="checkbox"
-                  required
-                  className="mt-1 h-4 w-4 rounded border-gray-700 bg-[#252030] text-purple-600 focus:ring-purple-500"
-                />
-                <label htmlFor="terms" className="ml-2 text-sm text-gray-400">
-                  I agree to the{' '}
-                  <Link href="#" className="text-purple-400 hover:text-purple-300 underline">
-                    Terms & Conditions
-                  </Link>
-                </label>
-              </div>
-            )}
-
-
             <button
               type="submit"
               disabled={isLoading}
               className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? (isRegister ? 'Creating account...' : 'Logging in...') : (isRegister ? 'Create account' : 'Log in')}
+              {isLoading ? (isRegister ? 'Creating account...' : 'Logging in...') : (isRegister ? 'Sign Up' : 'Sign In')}
             </button>
           </form>
 
-          {isRegister && (
-            <div className="mt-8">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-700"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-[#1a1625] text-gray-400">Or register with</span>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <div ref={googleButtonRef} className="w-full"></div>
-              </div>
+          {!isRegister && (
+            <div className="mt-4 text-center">
+              <Link href="/login/customer?register=true" className="text-sm text-red-400 hover:text-red-300">
+                I have an Account?
+              </Link>
             </div>
           )}
+
+          {/* Google Login Button */}
+          <div className="mt-6">
+            <div className="relative mb-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-700"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-gray-800 text-gray-400">Or {isRegister ? 'register' : 'login'} with</span>
+              </div>
+            </div>
+
+            <div>
+              <div ref={googleButtonRef} className="w-full"></div>
+            </div>
+          </div>
         </div>
+      </div>
       </div>
     </div>
   );
