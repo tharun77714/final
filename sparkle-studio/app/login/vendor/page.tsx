@@ -348,6 +348,7 @@ function VendorLoginForm() {
           </div>
         </div>
       </div>
+      </div>
     </div>
   );
 }
