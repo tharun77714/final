@@ -11,7 +11,19 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const { email, password, name, role, googleIdToken } = await request.json();
+    const {
+      email,
+      password,
+      name,
+      role,
+      googleIdToken,
+      businessName,
+      ownerName,
+      mobileNumber,
+      businessAddress,
+      yearsInBusiness,
+      vendorType,
+    } = await request.json();
 
     // Verify Google authentication if provided
     if (googleIdToken) {
@@ -43,11 +55,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!email || !password || !name || !role) {
+    // Basic validation
+    if (!email || !password || !role) {
       return NextResponse.json(
-        { error: 'Email, password, name, and role are required' },
+        { error: 'Email, password, and role are required' },
         { status: 400 }
       );
+    }
+
+    // For customers, name is required
+    if (role === 'customer' && !name) {
+      return NextResponse.json(
+        { error: 'Name is required for customer registration' },
+        { status: 400 }
+      );
+    }
+
+    // Convert yearsInBusiness to number if it's a string (for vendors)
+    let yearsInBusinessNum: number = 0;
+    if (yearsInBusiness !== undefined && yearsInBusiness !== null) {
+      const parsed = typeof yearsInBusiness === 'string' 
+        ? parseInt(yearsInBusiness) 
+        : Number(yearsInBusiness);
+      yearsInBusinessNum = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    }
+
+    // Vendor-specific validation - be lenient, save whatever data is provided
+    if (role === 'vendor') {
+      // Only validate vendorType if provided - must be valid if present
+      if (vendorType && !['Manufacturer', 'Wholesaler', 'Retailer'].includes(vendorType)) {
+        return NextResponse.json(
+          { error: 'Invalid vendor type. Must be Manufacturer, Wholesaler, or Retailer' },
+          { status: 400 }
+        );
+      }
+      
+      // Allow partial data - we'll save whatever is provided
+      // Empty strings are fine, they'll be stored as empty
     }
 
     if (role !== 'vendor' && role !== 'customer') {
@@ -80,11 +124,43 @@ export async function POST(request: NextRequest) {
 
     // Create user in the appropriate collection
     const UserModel = role === 'vendor' ? Vendor : Customer;
-    const user = await UserModel.create({
+    const userData: any = {
       email: email.toLowerCase(),
       password: hashedPassword,
-      name,
-    });
+    };
+
+    // Add name field based on role
+    if (role === 'vendor') {
+      userData.ownerName = ownerName;
+    } else {
+      userData.name = name;
+    }
+
+    // Add vendor-specific fields - save whatever data is provided
+    if (role === 'vendor') {
+      userData.businessName = businessName?.toString().trim() || '';
+      userData.ownerName = ownerName?.toString().trim() || '';
+      userData.mobileNumber = mobileNumber?.toString().trim() || '';
+      userData.businessAddress = businessAddress || {
+        street: '',
+        city: '',
+        state: '',
+        pincode: '',
+      };
+      // Ensure businessAddress has all required properties
+      if (userData.businessAddress) {
+        userData.businessAddress = {
+          street: userData.businessAddress.street?.toString().trim() || '',
+          city: userData.businessAddress.city?.toString().trim() || '',
+          state: userData.businessAddress.state?.toString().trim() || '',
+          pincode: userData.businessAddress.pincode?.toString().trim() || '',
+        };
+      }
+      userData.yearsInBusiness = yearsInBusinessNum;
+      userData.vendorType = vendorType?.toString().trim() || '';
+    }
+
+    const user = await UserModel.create(userData);
 
     // Generate token
     const token = generateToken({
@@ -100,7 +176,7 @@ export async function POST(request: NextRequest) {
         user: {
           id: user._id.toString(),
           email: user.email,
-          name: user.name,
+          name: role === 'vendor' ? (user as any).ownerName : (user as any).name,
           role: role,
         },
       },
