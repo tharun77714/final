@@ -13,17 +13,41 @@ declare global {
 function VendorLoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [googleIdToken, setGoogleIdToken] = useState<string | null>(null);
+  const [formStep, setFormStep] = useState<'form' | 'google'>('form'); // Track form step
+  const [googleButtonReady, setGoogleButtonReady] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Vendor-specific registration fields
+  const [businessName, setBusinessName] = useState('');
+  const [ownerName, setOwnerName] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [businessAddress, setBusinessAddress] = useState({
+    street: '',
+    city: '',
+    state: '',
+    pincode: '',
+  });
+  const [yearsInBusiness, setYearsInBusiness] = useState('');
+  const [vendorType, setVendorType] = useState<'Manufacturer' | 'Wholesaler' | 'Retailer' | ''>('');
+
   const GOOGLE_CLIENT_ID = '827839751926-62d8mnv6rl242t08qqca88j3j29udskc.apps.googleusercontent.com';
+
+  // Generate a random secure password for Google-authenticated users
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < 16; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
 
   const handleGoogleSignIn = async (response: any) => {
     try {
@@ -47,24 +71,312 @@ function VendorLoginForm() {
         return;
       }
 
-      // Set email and name from Google
+      // Set email from Google and generate password
       setEmail(verifyData.email);
-      setName(verifyData.name || '');
+      const randomPassword = generateRandomPassword();
+      setPassword(randomPassword);
       setGoogleIdToken(response.credential);
-      setIsLoading(false);
+
+      // Automatically submit registration
+      await handleRegistration(verifyData.email, randomPassword, response.credential);
     } catch (err) {
       setError('Google authentication failed. Please try again.');
       setIsLoading(false);
     }
   };
 
+  // Handle registration after Google sign-in - collects all form data and saves to MongoDB
+  const handleRegistration = async (userEmail: string, userPassword: string, idToken: string) => {
+    try {
+      // Read all form values directly from DOM to get latest data
+      const getValue = (id: string) => {
+        const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement;
+        return el?.value?.trim() || '';
+      };
+
+      const getAddressValue = (placeholder: string) => {
+        const inputs = Array.from(document.querySelectorAll('input[type="text"]'));
+        const el = inputs.find(input => input.placeholder === placeholder);
+        return el?.value?.trim() || '';
+      };
+
+      // Read address fields - try DOM first, then state
+      const streetEl = document.getElementById('businessAddressStreet') as HTMLInputElement;
+      const streetValue = streetEl?.value?.trim() || businessAddress?.street?.toString().trim() || '';
+      
+      // Find city, state, pincode by placeholder
+      const cityValue = getAddressValue('City') || businessAddress?.city?.toString().trim() || '';
+      const stateValue = getAddressValue('State') || businessAddress?.state?.toString().trim() || '';
+      const pincodeValue = getAddressValue('Pincode') || businessAddress?.pincode?.toString().trim() || '';
+
+      // Collect all form data - use DOM values first, fallback to state
+      const formData = {
+        businessName: getValue('businessName') || businessName?.toString().trim() || '',
+        ownerName: getValue('ownerName') || ownerName?.toString().trim() || '',
+        mobileNumber: getValue('mobileNumber') || mobileNumber?.toString().trim() || '',
+        businessAddress: {
+          street: streetValue,
+          city: cityValue,
+          state: stateValue,
+          pincode: pincodeValue,
+        },
+        yearsInBusiness: (() => {
+          const val = getValue('yearsInBusiness') || yearsInBusiness?.toString().trim() || '0';
+          const num = parseInt(val);
+          return isNaN(num) ? 0 : num;
+        })(),
+        vendorType: getValue('vendorType') || vendorType?.toString().trim() || '',
+      };
+
+      // Send all collected data to backend - backend will handle validation
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: userEmail,
+          password: userPassword,
+          name: formData.ownerName,
+          role: 'vendor',
+          googleIdToken: idToken,
+          businessName: formData.businessName,
+          ownerName: formData.ownerName,
+          mobileNumber: formData.mobileNumber,
+          businessAddress: formData.businessAddress,
+          yearsInBusiness: formData.yearsInBusiness,
+          vendorType: formData.vendorType,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        router.push('/home/vendor');
+      } else {
+        setError(data.error || 'Registration failed');
+        setIsLoading(false);
+      }
+    } catch (err) {
+      console.error('Registration error:', err);
+      setError('An error occurred during registration. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  // Validate form fields - reads from both state and DOM to ensure latest values
+  const validateForm = () => {
+    // Clear any previous errors first
+    setError('');
+    
+    // Try to read from DOM first (most up-to-date), fallback to state
+    const getBusinessName = () => {
+      const el = document.getElementById('businessName') as HTMLInputElement;
+      return el?.value?.trim() || businessName?.toString().trim() || '';
+    };
+    
+    const getOwnerName = () => {
+      const el = document.getElementById('ownerName') as HTMLInputElement;
+      return el?.value?.trim() || ownerName?.toString().trim() || '';
+    };
+    
+    const getMobileNumber = () => {
+      const el = document.getElementById('mobileNumber') as HTMLInputElement;
+      return el?.value?.trim() || mobileNumber?.toString().trim() || '';
+    };
+    
+    const getStreet = () => {
+      const el = document.getElementById('businessAddressStreet') as HTMLInputElement;
+      return el?.value?.trim() || businessAddress?.street?.toString().trim() || '';
+    };
+    
+    const getCity = () => {
+      const el = document.querySelector('input[placeholder="City"]') as HTMLInputElement;
+      return el?.value?.trim() || businessAddress?.city?.toString().trim() || '';
+    };
+    
+    const getState = () => {
+      const el = document.querySelector('input[placeholder="State"]') as HTMLInputElement;
+      return el?.value?.trim() || businessAddress?.state?.toString().trim() || '';
+    };
+    
+    const getPincode = () => {
+      const el = document.querySelector('input[placeholder="Pincode"]') as HTMLInputElement;
+      return el?.value?.trim() || businessAddress?.pincode?.toString().trim() || '';
+    };
+    
+    const getYearsInBusiness = () => {
+      const el = document.getElementById('yearsInBusiness') as HTMLInputElement;
+      return el?.value?.trim() || yearsInBusiness?.toString().trim() || '';
+    };
+    
+    const getVendorType = () => {
+      const el = document.getElementById('vendorType') as HTMLSelectElement;
+      return el?.value?.trim() || vendorType?.toString().trim() || '';
+    };
+    
+    // Validate each field
+    const businessNameVal = getBusinessName();
+    if (businessNameVal.length === 0) {
+      setError('Business Name is required');
+      return false;
+    }
+    
+    const ownerNameVal = getOwnerName();
+    if (ownerNameVal.length === 0) {
+      setError('Owner / Authorized Person Name is required');
+      return false;
+    }
+    
+    const mobileNumberVal = getMobileNumber();
+    if (mobileNumberVal.length === 0) {
+      setError('Mobile Number is required');
+      return false;
+    }
+    
+    const streetVal = getStreet();
+    if (streetVal.length === 0) {
+      setError('Business Address (Street) is required');
+      return false;
+    }
+    
+    const cityVal = getCity();
+    if (cityVal.length === 0) {
+      setError('Business Address (City) is required');
+      return false;
+    }
+    
+    const stateVal = getState();
+    if (stateVal.length === 0) {
+      setError('Business Address (State) is required');
+      return false;
+    }
+    
+    const pincodeVal = getPincode();
+    if (pincodeVal.length === 0) {
+      setError('Business Address (Pincode) is required');
+      return false;
+    }
+    
+    const yearsValue = getYearsInBusiness();
+    const yearsNum = yearsValue ? Number(yearsValue) : NaN;
+    if (!yearsValue || isNaN(yearsNum) || yearsNum < 0) {
+      setError('Years in Jewellery Business is required and must be a valid number');
+      return false;
+    }
+    
+    const vendorTypeVal = getVendorType();
+    if (vendorTypeVal.length === 0) {
+      setError('Type of Vendor is required');
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Handle Next button click
+  const handleNext = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    
+    if (validateForm()) {
+      setFormStep('google');
+    }
+  };
+
+  // Handle login form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          role: 'vendor',
+          googleIdToken: googleIdToken || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        router.push('/home/vendor');
+      } else {
+        setError(data.error || 'Login failed');
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Modified Google sign-in handler - proceed with Google sign-in and save all form data
+  const handleGoogleSignInWithValidation = async (response: any) => {
+    setError('');
+    setIsLoading(true);
+    
+    // Proceed directly with Google sign-in - all form data will be collected and saved to MongoDB
+    // No strict validation - backend will handle any missing required fields
+    await handleGoogleSignIn(response);
+  };
+
   useEffect(() => {
-    setIsRegister(searchParams.get('register') === 'true');
+    const registerParam = searchParams.get('register') === 'true';
+    setIsRegister(registerParam);
+    // Reset form step when switching between login/register
+    if (!registerParam) {
+      setFormStep('form');
+    }
   }, [searchParams]);
 
   useEffect(() => {
-    // Only load Google script when on registration page
+    // Load Google script when on registration page
     if (!isRegister) return;
+
+    // Initialize Google Sign-In with appropriate callback based on form step
+    const initializeGoogleSignIn = () => {
+      if (window.google && window.google.accounts) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: formStep === 'form' ? handleGoogleSignInWithValidation : handleGoogleSignIn,
+        });
+      }
+    };
+
+    // Render button when element is available
+    const renderButton = () => {
+      if (window.google && window.google.accounts && googleButtonRef.current && isRegister) {
+        try {
+          // Clear any existing content
+          googleButtonRef.current.innerHTML = '';
+          window.google.accounts.id.renderButton(googleButtonRef.current, {
+            theme: 'outline',
+            size: 'large',
+            width: '100%',
+            text: 'signup_with',
+            type: 'standard',
+          });
+          setGoogleButtonReady(true);
+        } catch (err) {
+          console.error('Error rendering Google button:', err);
+          setGoogleButtonReady(false);
+          // Retry after a delay
+          setTimeout(renderButton, 1000);
+        }
+      } else if (!window.google) {
+        // If Google script not loaded, retry
+        setGoogleButtonReady(false);
+        setTimeout(renderButton, 500);
+      }
+    };
 
     // Check if script already exists
     let script = document.getElementById('google-signin-script') as HTMLScriptElement;
@@ -78,93 +390,30 @@ function VendorLoginForm() {
       script.defer = true;
       
       script.onload = () => {
-        if (window.google) {
-          window.google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: handleGoogleSignIn,
-          });
-        }
+        initializeGoogleSignIn();
+        // Try rendering button after script loads
+        setTimeout(renderButton, 100);
+      };
+
+      script.onerror = () => {
+        console.error('Failed to load Google Sign-In script');
+        setError('Failed to load Google Sign-In. Please refresh the page.');
       };
 
       document.head.appendChild(script);
+    } else {
+      // Script already exists, re-initialize with updated callback and render
+      initializeGoogleSignIn();
+      setTimeout(renderButton, 100);
     }
 
-    // Render button when element is available
-    const renderButton = () => {
-      if (window.google && googleButtonRef.current && isRegister) {
-        try {
-          // Clear any existing content
-          googleButtonRef.current.innerHTML = '';
-          window.google.accounts.id.renderButton(googleButtonRef.current, {
-            theme: 'outline',
-            size: 'large',
-            width: '100%',
-            text: 'signin_with',
-            type: 'standard',
-          });
-        } catch (err) {
-          console.error('Error rendering Google button:', err);
-        }
-      }
-    };
-
-    // Wait a bit for DOM to update, then render
-    setTimeout(() => {
-      if (window.google) {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleSignIn,
-        });
-      }
-      renderButton();
-    }, 100);
-    
-    setTimeout(renderButton, 500);
-  }, [isRegister]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    // Handle email/Google authentication
-    // Google authentication is optional for login, required for registration
-    if (isRegister && !googleIdToken) {
-      setError('Please sign in with Google first to verify your email for registration');
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
-      const body = isRegister
-        ? { email, password, name, role: 'vendor', googleIdToken }
-        : { email, password, role: 'vendor', googleIdToken: googleIdToken || null };
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        router.push('/home/vendor');
-      } else {
-        setError(data.error || (isRegister ? 'Registration failed' : 'Login failed'));
-      }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // Also try rendering after DOM updates
+    setTimeout(renderButton, 300);
+    setTimeout(renderButton, 800);
+  }, [isRegister, formStep]);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen overflow-hidden">
       {/* Left Column - Visual/Branding */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800">
         <div 
@@ -189,8 +438,8 @@ function VendorLoginForm() {
       </div>
 
       {/* Right Column - Form */}
-      <div className="flex-1 flex items-center justify-center bg-[#1a1625] px-6 py-12">
-        <div className="w-full max-w-md">
+      <div className="flex-1 flex items-start justify-center bg-[#1a1625] px-6 py-12 overflow-y-auto h-screen">
+        <div className="w-full max-w-md py-8 pb-16">
           <Link href="/" className="text-indigo-400 hover:text-indigo-300 mb-8 inline-block text-sm">
             ← Back to website
           </Link>
@@ -224,82 +473,135 @@ function VendorLoginForm() {
             </div>
           )}
 
-          {googleIdToken && (
+          {isRegister && formStep === 'google' && googleIdToken && (
             <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">
               ✓ Google email verified: {email}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {isRegister && (
+          {isRegister && formStep === 'form' ? (
+            // Step 1: Form fields (no email/password)
+            <form onSubmit={(e) => e.preventDefault()} className="space-y-6" noValidate>
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
-                  Name
+                <label htmlFor="businessName" className="block text-sm font-medium text-gray-300 mb-2">
+                  Business Name (as per registration) <span className="text-red-400">*</span>
                 </label>
                 <input
-                  id="name"
+                  id="businessName"
                   type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
                   required
-                  disabled={!!googleIdToken}
-                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                  placeholder="Enter your name"
+                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Enter business name"
                 />
               </div>
-            )}
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={!!googleIdToken}
-                className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="Enter your email"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                Password
-              </label>
-              <div className="relative">
+              <div>
+                <label htmlFor="ownerName" className="block text-sm font-medium text-gray-300 mb-2">
+                  Owner / Authorized Person Name <span className="text-red-400">*</span>
+                </label>
                 <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  id="ownerName"
+                  type="text"
+                  value={ownerName}
+                  onChange={(e) => setOwnerName(e.target.value)}
                   required
-                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent pr-12"
-                  placeholder="Enter your password"
+                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Enter owner/authorized person name"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
-                >
-                  {showPassword ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
-                </button>
               </div>
-            </div>
 
+              <div>
+                <label htmlFor="mobileNumber" className="block text-sm font-medium text-gray-300 mb-2">
+                  Mobile Number <span className="text-red-400">*</span>
+                </label>
+                <input
+                  id="mobileNumber"
+                  type="tel"
+                  value={mobileNumber}
+                  onChange={(e) => setMobileNumber(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Enter mobile number"
+                />
+              </div>
 
-            {isRegister && (
+              <div>
+                <label htmlFor="businessAddressStreet" className="block text-sm font-medium text-gray-300 mb-2">
+                  Business Address <span className="text-red-400">*</span>
+                </label>
+                <input
+                  id="businessAddressStreet"
+                  type="text"
+                  value={businessAddress.street}
+                  onChange={(e) => setBusinessAddress({ ...businessAddress, street: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-3"
+                  placeholder="Street Address"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    value={businessAddress.city}
+                    onChange={(e) => setBusinessAddress({ ...businessAddress, city: e.target.value })}
+                    required
+                    className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="City"
+                  />
+                  <input
+                    type="text"
+                    value={businessAddress.state}
+                    onChange={(e) => setBusinessAddress({ ...businessAddress, state: e.target.value })}
+                    required
+                    className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="State"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={businessAddress.pincode}
+                  onChange={(e) => setBusinessAddress({ ...businessAddress, pincode: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mt-3"
+                  placeholder="Pincode"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="yearsInBusiness" className="block text-sm font-medium text-gray-300 mb-2">
+                  Years in Jewellery Business <span className="text-red-400">*</span>
+                </label>
+                <input
+                  id="yearsInBusiness"
+                  type="number"
+                  value={yearsInBusiness}
+                  onChange={(e) => setYearsInBusiness(e.target.value)}
+                  required
+                  min="0"
+                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Enter years in business"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="vendorType" className="block text-sm font-medium text-gray-300 mb-2">
+                  Type of Vendor <span className="text-red-400">*</span>
+                </label>
+                <select
+                  id="vendorType"
+                  value={vendorType}
+                  onChange={(e) => setVendorType(e.target.value as 'Manufacturer' | 'Wholesaler' | 'Retailer')}
+                  required
+                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                >
+                  <option value="">Select vendor type</option>
+                  <option value="Manufacturer">Manufacturer</option>
+                  <option value="Wholesaler">Wholesaler</option>
+                  <option value="Retailer">Retailer</option>
+                </select>
+              </div>
+
               <div className="flex items-start">
                 <input
                   id="terms"
@@ -314,33 +616,107 @@ function VendorLoginForm() {
                   </Link>
                 </label>
               </div>
-            )}
 
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (isRegister ? 'Creating account...' : 'Logging in...') : (isRegister ? 'Create account' : 'Log in')}
-            </button>
-          </form>
-
-          {isRegister && (
-            <div className="mt-8">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-700"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-[#1a1625] text-gray-400">Or register with</span>
+              <div className="pt-6">
+                <p className="text-sm text-gray-400 mb-4 text-center">
+                  Complete your registration by signing up with Google
+                </p>
+                <div ref={googleButtonRef} className="w-full min-h-[42px]"></div>
+                {!googleButtonReady && (
+                  <div className="mt-2 text-center">
+                    <p className="text-xs text-gray-500">Loading Google Sign-In...</p>
+                  </div>
+                )}
+              </div>
+            </form>
+          ) : isRegister && formStep === 'google' ? (
+            // Step 2: Google Sign-Up
+            <div className="space-y-6">
+              <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
+                <h3 className="text-lg font-semibold text-white mb-2">Complete Your Registration</h3>
+                <p className="text-gray-400 text-sm mb-4">Please sign up with Google to verify your email and complete your vendor registration.</p>
+                <div className="space-y-2 text-sm text-gray-300">
+                  <p><span className="font-medium">Business Name:</span> {businessName}</p>
+                  <p><span className="font-medium">Owner Name:</span> {ownerName}</p>
+                  <p><span className="font-medium">Mobile:</span> {mobileNumber}</p>
                 </div>
               </div>
 
               <div className="mt-6">
                 <div ref={googleButtonRef} className="w-full"></div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setFormStep('form');
+                  setError('');
+                }}
+                className="w-full text-gray-400 hover:text-gray-300 text-sm underline"
+              >
+                ← Back to edit information
+              </button>
             </div>
+          ) : (
+            // Login form (existing)
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                  Email ID <span className="text-red-400">*</span>
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={!!googleIdToken}
+                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="Enter your email"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                  Password <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent pr-12"
+                    placeholder="Enter your password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                  >
+                    {showPassword ? (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Logging in...' : 'Log in'}
+              </button>
+            </form>
           )}
         </div>
       </div>
