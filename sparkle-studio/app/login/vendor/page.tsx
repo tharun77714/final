@@ -338,22 +338,28 @@ function VendorLoginForm() {
   }, [searchParams]);
 
   useEffect(() => {
-    // Load Google script when on registration page
-    if (!isRegister) return;
-
-    // Initialize Google Sign-In with appropriate callback based on form step
+    // Initialize Google Sign-In with appropriate callback based on form step and mode
     const initializeGoogleSignIn = () => {
       if (window.google && window.google.accounts) {
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
-          callback: formStep === 'form' ? handleGoogleSignInWithValidation : handleGoogleSignIn,
+          callback: isRegister 
+            ? (formStep === 'form' ? handleGoogleSignInWithValidation : handleGoogleSignIn)
+            : handleGoogleSignIn,
         });
       }
     };
 
     // Render button when element is available
     const renderButton = () => {
-      if (window.google && window.google.accounts && googleButtonRef.current && isRegister) {
+      // Check if ref element exists and is in the DOM
+      if (!googleButtonRef.current || !document.contains(googleButtonRef.current)) {
+        // Element not in DOM yet, retry
+        setTimeout(renderButton, 300);
+        return;
+      }
+
+      if (window.google && window.google.accounts && googleButtonRef.current) {
         try {
           // Clear any existing content
           googleButtonRef.current.innerHTML = '';
@@ -361,7 +367,7 @@ function VendorLoginForm() {
             theme: 'outline',
             size: 'large',
             width: '100%',
-            text: 'signup_with',
+            text: isRegister ? 'signup_with' : 'signin_with',
             type: 'standard',
           });
           setGoogleButtonReady(true);
@@ -413,75 +419,96 @@ function VendorLoginForm() {
   }, [isRegister, formStep]);
 
   return (
-    <div className="flex min-h-screen overflow-hidden">
-      {/* Left Column - Visual/Branding */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800">
-        <div 
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-          }}
-        ></div>
-        
-        <div className="relative z-10 flex flex-col justify-between p-12 text-white">
-          <div>
-            <Link href="/" className="text-2xl font-bold mb-8 inline-block">
-              Sparkle Studio →
-            </Link>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center px-6 py-12">
+      {/* Card Container */}
+      <div className="w-full max-w-7xl bg-gray-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col lg:flex-row">
+        {/* Left Column - Visual/Branding (40% width) */}
+        <div className="hidden lg:flex lg:w-[40%] relative bg-gradient-to-br from-blue-500 via-blue-600 via-cyan-500 to-blue-800 overflow-hidden">
+          {/* Decorative abstract shapes */}
+          <div className="absolute top-10 left-10 w-24 h-24 bg-cyan-400 rounded-full opacity-30"></div>
+          <div className="absolute top-32 right-20 w-32 h-12 bg-sky-300 rounded-full opacity-40 transform rotate-12"></div>
+          <div className="absolute bottom-32 left-32 w-28 h-12 bg-cyan-400 rounded-full opacity-40 transform -rotate-12"></div>
+          <div className="absolute bottom-20 right-10 w-40 h-40 bg-blue-300 rounded-full opacity-20 transform rotate-45"></div>
+          <div className="absolute top-1/2 left-1/4 w-20 h-20 bg-sky-300 rounded-full opacity-30"></div>
           
-          <div className="mb-12">
-            <h2 className="text-3xl font-semibold mb-4">Welcome {isRegister ? '' : 'Back'}!</h2>
-            <p className="text-indigo-200 text-lg">Capturing Moments, Creating Memories</p>
+          <div className="relative z-10 flex flex-col justify-between p-10 py-12 text-white w-full">
+            <div>
+              <Link href="/" className="text-xl font-bold mb-4 inline-flex items-center gap-2 hover:text-blue-200 transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Sparkle Studio
+              </Link>
+            </div>
+            
+            {/* Image and Content Container */}
+            <div className="flex-1 flex flex-col items-center justify-center py-4">
+              <div className="relative mb-4">
+                <img 
+                  src="/media/vendor-removebg-preview.png" 
+                  alt="Welcome" 
+                  className="relative z-10 w-full max-w-xs h-auto object-contain drop-shadow-2xl"
+                />
+              </div>
+              
+              <div className="text-center">
+                <h2 className="text-2xl font-bold mb-2 text-white">
+                  Welcome {isRegister ? '' : 'Back'}!
+                </h2>
+                <p className="text-blue-100 text-sm font-medium">Capturing Moments, Creating Memories</p>
+              </div>
+            </div>
+            
+            <div className="text-left text-blue-200/80 text-xs">
+              Copyright © 2024, Sparkle Studio. All rights reserved.
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Right Column - Form */}
-      <div className="flex-1 flex items-start justify-center bg-[#1a1625] px-6 py-12 overflow-y-auto h-screen">
-        <div className="w-full max-w-md py-8 pb-16">
-          <Link href="/" className="text-indigo-400 hover:text-indigo-300 mb-8 inline-block text-sm">
-            ← Back to website
-          </Link>
-
-          <h1 className="text-4xl font-bold text-white mb-2">
-            {isRegister ? 'Create an account.' : 'Log in.'}
-          </h1>
-          <p className="text-gray-400 mb-8">
-            {isRegister ? (
-              <>
-                Already have an account?{' '}
-                <Link href="/login/vendor" className="text-indigo-400 hover:text-indigo-300 underline">
-                  Log in
-                </Link>
-              </>
-            ) : (
-              <>
-                Don&apos;t have an account?{' '}
-                <Link href="/login/vendor?register=true" className="text-indigo-400 hover:text-indigo-300 underline">
-                  Sign up
-                </Link>
-              </>
-            )}
-          </p>
+        {/* Right Column - Form (60% width) */}
+        <div className="flex-1 lg:w-[60%] flex items-start justify-center bg-gray-800 px-6 py-8 overflow-y-auto max-h-screen">
+        <div className="w-full max-w-sm py-4">
+          {/* Tabs */}
+          <div className="flex gap-8 mb-6 border-b border-gray-700">
+            <button
+              onClick={() => setIsRegister(true)}
+              className={`pb-4 px-2 font-medium text-lg transition-colors ${
+                isRegister
+                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              Sign Up
+            </button>
+            <button
+              onClick={() => setIsRegister(false)}
+              className={`pb-4 px-2 font-medium text-lg transition-colors ${
+                !isRegister
+                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              Sign In
+            </button>
+          </div>
 
           {/* Login Method Toggle */}
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+            <div className="mb-4 p-3 bg-red-900/30 border border-red-700 rounded-lg text-red-400 text-sm">
               {error}
             </div>
           )}
 
           {isRegister && formStep === 'google' && googleIdToken && (
-            <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">
+            <div className="mb-4 p-3 bg-green-900/30 border border-green-700 rounded-lg text-green-400 text-sm">
               ✓ Google email verified: {email}
             </div>
           )}
 
           {isRegister && formStep === 'form' ? (
             // Step 1: Form fields (no email/password)
-            <form onSubmit={(e) => e.preventDefault()} className="space-y-6" noValidate>
+            <form onSubmit={(e) => e.preventDefault()} className="space-y-3" noValidate>
               <div>
                 <label htmlFor="businessName" className="block text-sm font-medium text-gray-300 mb-2">
                   Business Name (as per registration) <span className="text-red-400">*</span>
@@ -492,7 +519,7 @@ function VendorLoginForm() {
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   required
-                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter business name"
                 />
               </div>
@@ -507,7 +534,7 @@ function VendorLoginForm() {
                   value={ownerName}
                   onChange={(e) => setOwnerName(e.target.value)}
                   required
-                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter owner/authorized person name"
                 />
               </div>
@@ -522,7 +549,7 @@ function VendorLoginForm() {
                   value={mobileNumber}
                   onChange={(e) => setMobileNumber(e.target.value)}
                   required
-                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter mobile number"
                 />
               </div>
@@ -537,7 +564,7 @@ function VendorLoginForm() {
                   value={businessAddress.street}
                   onChange={(e) => setBusinessAddress({ ...businessAddress, street: e.target.value })}
                   required
-                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-3"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-3"
                   placeholder="Street Address"
                 />
                 <div className="grid grid-cols-2 gap-3">
@@ -546,7 +573,7 @@ function VendorLoginForm() {
                     value={businessAddress.city}
                     onChange={(e) => setBusinessAddress({ ...businessAddress, city: e.target.value })}
                     required
-                    className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="City"
                   />
                   <input
@@ -554,7 +581,7 @@ function VendorLoginForm() {
                     value={businessAddress.state}
                     onChange={(e) => setBusinessAddress({ ...businessAddress, state: e.target.value })}
                     required
-                    className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="State"
                   />
                 </div>
@@ -563,7 +590,7 @@ function VendorLoginForm() {
                   value={businessAddress.pincode}
                   onChange={(e) => setBusinessAddress({ ...businessAddress, pincode: e.target.value })}
                   required
-                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mt-3"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mt-3"
                   placeholder="Pincode"
                 />
               </div>
@@ -579,7 +606,7 @@ function VendorLoginForm() {
                   onChange={(e) => setYearsInBusiness(e.target.value)}
                   required
                   min="0"
-                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter years in business"
                 />
               </div>
@@ -593,7 +620,7 @@ function VendorLoginForm() {
                   value={vendorType}
                   onChange={(e) => setVendorType(e.target.value as 'Manufacturer' | 'Wholesaler' | 'Retailer')}
                   required
-                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select vendor type</option>
                   <option value="Manufacturer">Manufacturer</option>
@@ -607,18 +634,18 @@ function VendorLoginForm() {
                   id="terms"
                   type="checkbox"
                   required
-                  className="mt-1 h-4 w-4 rounded border-gray-700 bg-[#252030] text-indigo-600 focus:ring-indigo-500"
+                  className="mt-1 h-4 w-4 rounded border-gray-700 bg-gray-700 text-blue-600 focus:ring-blue-500"
                 />
                 <label htmlFor="terms" className="ml-2 text-sm text-gray-400">
                   I agree to the{' '}
-                  <Link href="#" className="text-indigo-400 hover:text-indigo-300 underline">
+                  <Link href="#" className="text-blue-400 hover:text-blue-300 underline transition-colors">
                     Terms & Conditions
                   </Link>
                 </label>
               </div>
 
-              <div className="pt-6">
-                <p className="text-sm text-gray-400 mb-4 text-center">
+              <div className="pt-4">
+                <p className="text-sm text-gray-400 mb-3 text-center">
                   Complete your registration by signing up with Google
                 </p>
                 <div ref={googleButtonRef} className="w-full min-h-[42px]"></div>
@@ -632,7 +659,7 @@ function VendorLoginForm() {
           ) : isRegister && formStep === 'google' ? (
             // Step 2: Google Sign-Up
             <div className="space-y-6">
-              <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
+              <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                 <h3 className="text-lg font-semibold text-white mb-2">Complete Your Registration</h3>
                 <p className="text-gray-400 text-sm mb-4">Please sign up with Google to verify your email and complete your vendor registration.</p>
                 <div className="space-y-2 text-sm text-gray-300">
@@ -659,66 +686,93 @@ function VendorLoginForm() {
             </div>
           ) : (
             // Login form (existing)
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                  Email ID <span className="text-red-400">*</span>
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={!!googleIdToken}
-                  className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-                  placeholder="Enter your email"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                  Password <span className="text-red-400">*</span>
-                </label>
-                <div className="relative">
+            <>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                    Email ID <span className="text-red-400">*</span>
+                  </label>
                   <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full px-4 py-3 bg-[#252030] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent pr-12"
-                    placeholder="Enter your password"
+                    disabled={!!googleIdToken}
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="Enter your email"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
-                  >
-                    {showPassword ? (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                      </svg>
-                    ) : (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    )}
-                  </button>
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                    Password <span className="text-red-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-12"
+                      placeholder="Enter your password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                    >
+                      {showPassword ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Logging in...' : 'Sign In'}
+                </button>
+              </form>
+
+              <div className="mt-4 text-center">
+                <Link href="/login/vendor?register=true" className="text-sm text-red-400 hover:text-red-300">
+                  I have an Account?
+                </Link>
+              </div>
+            </>
+          )}
+
+          {/* Google Login Button - Show for login mode only (registration has its own Google button in the form) */}
+          {!isRegister && (
+            <div className="mt-6">
+              <div className="relative mb-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-700"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-gray-800 text-gray-400">Or login with</span>
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Logging in...' : 'Log in'}
-              </button>
-            </form>
+              <div>
+                <div ref={googleButtonRef} className="w-full"></div>
+              </div>
+            </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
