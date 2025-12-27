@@ -12,6 +12,15 @@ export interface IVendor extends Document {
     state: string;
     pincode: string;
   };
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
+  rating?: number;
+  images?: string[];
+  categories?: string[];
+  items?: string[];
+  isActive?: boolean;
   yearsInBusiness: number;
   vendorType: 'Manufacturer' | 'Wholesaler' | 'Retailer';
   createdAt: Date;
@@ -78,6 +87,38 @@ const VendorSchema: Schema = new Schema(
       type: String,
       required: [true, 'Type of Vendor is required'],
       enum: ['Manufacturer', 'Wholesaler', 'Retailer'],
+    },
+    location: {
+      latitude: {
+        type: Number,
+        default: null,
+      },
+      longitude: {
+        type: Number,
+        default: null,
+      },
+    },
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    images: {
+      type: [String],
+      default: [],
+    },
+    categories: {
+      type: [String],
+      default: [],
+    },
+    items: {
+      type: [String],
+      default: [],
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   {
