@@ -4,17 +4,72 @@ import { useEffect, useRef, useState } from 'react';
 
 export default function HeroSection() {
   const [splineLoaded, setSplineLoaded] = useState(false);
+  const [splineError, setSplineError] = useState(false);
   const splineContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let isMounted = true;
+    let timeout: NodeJS.Timeout;
+    let checkInterval: NodeJS.Timeout;
+    
+    // Check if script already exists and element is registered
+    const existingScript = document.querySelector('script[src*="spline-viewer"]');
+    if (existingScript && customElements.get('spline-viewer')) {
+      if (isMounted) {
+        setSplineLoaded(true);
+        setSplineError(false);
+      }
+      return;
+    }
+
+    // Set timeout to stop loading after 10 seconds
+    timeout = setTimeout(() => {
+      if (isMounted && !customElements.get('spline-viewer')) {
+        setSplineError(true);
+        setSplineLoaded(false);
+      }
+    }, 10000);
+
     // Load Spline viewer script
-    const script = document.createElement('script');
-    script.type = 'module';
-    script.src = 'https://unpkg.com/@splinetool/viewer@1.12.6/build/spline-viewer.js';
-    script.onload = () => {
-      setSplineLoaded(true);
-    };
-    document.head.appendChild(script);
+    let script: HTMLScriptElement | null = null;
+    
+    if (!existingScript) {
+      script = document.createElement('script');
+      script.type = 'module';
+      script.src = 'https://unpkg.com/@splinetool/viewer@1.12.6/build/spline-viewer.js';
+      script.onload = () => {
+        if (!isMounted) return;
+        clearTimeout(timeout);
+        // Wait a bit for custom element to register
+        setTimeout(() => {
+          if (!isMounted) return;
+          if (customElements.get('spline-viewer')) {
+            setSplineLoaded(true);
+            setSplineError(false);
+          } else {
+            setSplineError(true);
+          }
+        }, 500);
+      };
+      script.onerror = () => {
+        if (!isMounted) return;
+        clearTimeout(timeout);
+        setSplineError(true);
+        setSplineLoaded(false);
+      };
+      document.head.appendChild(script);
+    } else {
+      // If script exists but element not registered, check periodically
+      checkInterval = setInterval(() => {
+        if (!isMounted) return;
+        if (customElements.get('spline-viewer')) {
+          clearInterval(checkInterval!);
+          clearTimeout(timeout);
+          setSplineLoaded(true);
+          setSplineError(false);
+        }
+      }, 500);
+    }
 
     // Function to remove Spline attribution
     const removeAttribution = () => {
@@ -78,11 +133,11 @@ export default function HeroSection() {
     }
 
     return () => {
+      isMounted = false;
+      clearTimeout(timeout);
+      if (checkInterval) clearInterval(checkInterval);
       clearInterval(interval);
       observer.disconnect();
-      if (document.head.contains(script)) {
-        document.head.removeChild(script);
-      }
     };
   }, []);
 
@@ -186,7 +241,7 @@ export default function HeroSection() {
             <div className="absolute left-0 top-0 bottom-0 w-80 bg-gradient-to-r from-[#000000] via-[#000000]/90 via-[#000000]/60 via-[#000000]/30 to-transparent z-10 pointer-events-none"></div>
             <div className="absolute left-0 top-0 bottom-0 w-48 bg-gradient-to-r from-[#000000]/50 via-transparent to-transparent z-10 pointer-events-none"></div>
             
-            {!splineLoaded && (
+            {!splineLoaded && !splineError && (
               <div className="absolute inset-0 flex items-center justify-center bg-[#000000] z-0">
                 <div className="text-center space-y-4">
                   <div className="w-16 h-16 border-4 border-[#8B5CF6] border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -194,7 +249,16 @@ export default function HeroSection() {
                 </div>
               </div>
             )}
-            {splineLoaded && (
+            {splineError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#000000] z-0">
+                <div className="text-center space-y-4 px-4">
+                  <div className="text-4xl mb-2">💎</div>
+                  <p className="text-gray-400 text-sm">3D viewer unavailable</p>
+                  <p className="text-gray-500 text-xs">Content will load shortly</p>
+                </div>
+              </div>
+            )}
+            {splineLoaded && !splineError && (
               <spline-viewer
                 url="https://prod.spline.design/OIVSsQEj72vcCgTh/scene.splinecode"
                 style={{ 
